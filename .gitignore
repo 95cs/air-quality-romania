@@ -1,0 +1,14 @@
+.env
+__pycache__/
+*.pyc
+.venv/
+venv/
+dbt_air/target/
+dbt_air/dbt_packages/
+dbt_air/logs/
+logs/
+*.duckdb
+.DS_Store
+
+findings/
+backfill.log

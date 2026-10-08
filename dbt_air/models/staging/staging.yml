@@ -1,0 +1,33 @@
+version: 2
+
+models:
+  - name: stg_air__measurements
+    description: Typed, time-zoned view over the landing table. Nothing is filtered out here.
+    columns:
+      - name: city_id
+        tests: [not_null]
+      - name: observed_at
+        tests: [not_null]
+      - name: pollutant
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['pm10', 'pm2_5', 'no2', 'so2', 'o3', 'co']
+      - name: value
+        description: Concentration in the unit on the same row. CO is not in the same unit as the rest.
+        tests: [not_null]
+      - name: unit
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['ug/m3']
+
+  - name: stg_air__load_runs
+    description: One row per pipeline run. The audit trail behind any claim that this pipeline runs.
+    columns:
+      - name: run_id
+        tests: [not_null, unique]
+      - name: status
+        tests:
+          - accepted_values:
+              values: ['running', 'success', 'failed']

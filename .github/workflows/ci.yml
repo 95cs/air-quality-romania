@@ -1,0 +1,66 @@
+name: ci
+
+# Every push rebuilds the warehouse from scratch against a throwaway Postgres and
+# runs the full test suite. It uses the synthetic fixture rather than the API, so
+# the models are exercised without depending on a third party being up.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: air
+          POSTGRES_PASSWORD: air
+          POSTGRES_DB: airquality
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U air -d airquality"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: "5432"
+      PGUSER: air
+      PGPASSWORD: air
+      PGDATABASE: airquality
+      DBT_PROFILES_DIR: ${{ github.workspace }}/dbt_air
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Create the landing schema
+        run: psql "postgresql://air:air@127.0.0.1:5432/airquality" -f sql/001_schema.sql
+
+      - name: Generate the test fixture
+        working-directory: ingest
+        run: python synth.py --days 120 --seed 7
+
+      - name: Build and test
+        working-directory: dbt_air
+        run: dbt build
+
+      - name: Prove the quality tests still bite
+        working-directory: ${{ github.workspace }}
+        run: |
+          cd ingest && python synth.py --days 2 --seed 99 --plant-bad 3 && cd ..
+          cd dbt_air
+          dbt run --select fct_measurement_hourly >/dev/null
+          if dbt test --select fct_measurement_hourly; then
+            echo "::error::planted impossible values did not fail any test"
+            exit 1
+          fi
+          echo "quality tests correctly rejected the planted values"

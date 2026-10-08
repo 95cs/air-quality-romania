@@ -1,0 +1,57 @@
+name: refresh
+
+# The scheduled run. Pulls whatever hours are missing since the last successful
+# load, rebuilds the models and runs the tests. Hourly air quality is published
+# with a lag, so once a day is enough; nothing is gained by running it more often.
+#
+# Requires a reachable Postgres. Set these repository secrets to turn it on:
+#   PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE
+# Without them the job exits cleanly rather than failing every morning.
+
+on:
+  schedule:
+    - cron: "17 4 * * *"   # 04:17 UTC, after the previous day is complete
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+
+    env:
+      PGHOST: ${{ secrets.PGHOST }}
+      PGPORT: ${{ secrets.PGPORT }}
+      PGUSER: ${{ secrets.PGUSER }}
+      PGPASSWORD: ${{ secrets.PGPASSWORD }}
+      PGDATABASE: ${{ secrets.PGDATABASE }}
+      DBT_PROFILES_DIR: ${{ github.workspace }}/dbt_air
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Skip if no warehouse is configured
+        id: guard
+        run: |
+          if [ -z "${PGHOST}" ]; then
+            echo "no PGHOST secret set - nothing to refresh"
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-python@v5
+        if: steps.guard.outputs.configured == 'true'
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+        if: steps.guard.outputs.configured == 'true'
+
+      - name: Load new hours
+        if: steps.guard.outputs.configured == 'true'
+        run: python ingest/fetch.py --mode incremental
+
+      - name: Rebuild and test
+        if: steps.guard.outputs.configured == 'true'
+        working-directory: dbt_air
+        run: dbt build

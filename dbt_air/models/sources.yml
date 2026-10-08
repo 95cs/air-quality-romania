@@ -1,0 +1,18 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    description: >
+      Landing tables written by ingest/fetch.py. Nothing in here is cleaned; the
+      API's numbers arrive as they are so that a bug in a model can never destroy
+      the only copy of the source.
+    tables:
+      - name: measurements
+        description: One row per city, hour and pollutant. The primary key is the grain.
+        loaded_at_field: ingested_at
+        freshness:
+          warn_after: {count: 30, period: hour}
+          error_after: {count: 72, period: hour}
+      - name: load_runs
+        description: One row per pipeline run, successful or not.

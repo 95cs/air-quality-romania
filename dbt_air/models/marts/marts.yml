@@ -1,0 +1,131 @@
+version: 2
+
+models:
+  - name: dim_city
+    description: The 22 Romanian cities covered, with population and a size band.
+    columns:
+      - name: city_id
+        tests: [not_null, unique]
+      - name: latitude
+        tests:
+          - within_range:
+              arguments:
+                min_value: 43.6
+                max_value: 48.3
+      - name: longitude
+        tests:
+          - within_range:
+              arguments:
+                min_value: 20.2
+                max_value: 29.8
+      - name: population_2021
+        tests:
+          - within_range:
+              arguments:
+                min_value: 1000
+                max_value: 2500000
+
+  - name: fct_measurement_hourly
+    description: >
+      One row per city, hour and pollutant. Incremental on ingested_at so that the
+      API's revisions to recent hours flow through instead of being skipped.
+    columns:
+      - name: city_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_city')
+              field: city_id
+      - name: observed_at
+        tests: [not_null]
+      - name: pollutant
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['pm10', 'pm2_5', 'no2', 'so2', 'o3', 'co']
+      - name: value
+        tests:
+          # Wide bounds on purpose. This is not a test of whether the air is bad,
+          # it is a test of whether a number is a concentration at all.
+          - within_range:
+              arguments:
+                min_value: 0
+                max_value: 100000
+      - name: hour_local
+        tests:
+          - within_range:
+              arguments:
+                min_value: 0
+                max_value: 23
+      - name: season
+        tests:
+          - accepted_values:
+              values: ['winter', 'spring', 'summer', 'autumn']
+
+  - name: mart_daily_city_pollutant
+    description: Daily aggregates with a 75% data-capture flag (18 of 24 hours).
+    columns:
+      - name: hours_observed
+        tests:
+          - not_null
+          - within_range:
+              arguments:
+                min_value: 1
+                max_value: 25
+      - name: mean_value
+        tests: [not_null]
+
+  - name: mart_who_exceedance
+    description: Days over the WHO 2021 guidelines per city, pollutant and year.
+    columns:
+      - name: valid_days
+        tests:
+          - within_range:
+              arguments:
+                min_value: 1
+                max_value: 366
+      - name: exceedance_days
+        tests:
+          - within_range:
+              arguments:
+                min_value: 0
+                max_value: 366
+      - name: pct_days_over
+        tests:
+          - within_range:
+              arguments:
+                min_value: 0
+                max_value: 100
+
+  - name: mart_diurnal_profile
+    description: Mean and median by hour of day, split by season.
+    columns:
+      - name: hour_local
+        tests:
+          - not_null
+          - within_range:
+              arguments:
+                min_value: 0
+                max_value: 23
+
+  - name: mart_data_completeness
+    description: Observed hours against expected hours, per city, month and pollutant.
+    columns:
+      - name: pct_complete
+        tests:
+          - within_range:
+              arguments:
+                min_value: 0
+                max_value: 100
+
+seeds:
+  - name: cities
+    description: The single source of truth for which cities are covered. The ingestion reads this same file.
+    columns:
+      - name: city_id
+        tests: [not_null, unique]
+  - name: who_guidelines
+    description: WHO 2021 global air quality guideline levels, cross-checked against two sources.
+    columns:
+      - name: guideline_value
+        tests: [not_null]

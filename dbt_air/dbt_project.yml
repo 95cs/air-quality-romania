@@ -1,0 +1,33 @@
+name: air_quality_ro
+version: "1.0.0"
+config-version: 2
+profile: air_quality_ro
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  air_quality_ro:
+    staging:
+      +materialized: view
+      +schema: staging
+    marts:
+      +materialized: table
+      +schema: marts
+
+seeds:
+  air_quality_ro:
+    +schema: seeds
+    cities:
+      +column_types:
+        city_id: text
+        latitude: double precision
+        longitude: double precision
+        population_2021: integer
+    who_guidelines:
+      +column_types:
+        guideline_value: double precision

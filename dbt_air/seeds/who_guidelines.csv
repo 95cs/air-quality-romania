@@ -1,0 +1,11 @@
+pollutant,averaging_period,guideline_value,unit,allows_exceedance_days,source
+pm2_5,annual,5,ug/m3,0,WHO 2021 AQG
+pm2_5,24h,15,ug/m3,4,WHO 2021 AQG (99th percentile)
+pm10,annual,15,ug/m3,0,WHO 2021 AQG
+pm10,24h,45,ug/m3,4,WHO 2021 AQG (99th percentile)
+no2,annual,10,ug/m3,0,WHO 2021 AQG
+no2,24h,25,ug/m3,4,WHO 2021 AQG (99th percentile)
+so2,24h,40,ug/m3,4,WHO 2021 AQG (99th percentile)
+o3,8h,100,ug/m3,4,WHO 2021 AQG (99th percentile)
+o3,peak_season,60,ug/m3,0,WHO 2021 AQG
+co,24h,4000,ug/m3,4,WHO 2021 AQG (4 mg/m3 expressed in ug/m3)
